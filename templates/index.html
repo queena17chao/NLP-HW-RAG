@@ -1,0 +1,261 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>健康醫療 RAG 小幫手</title>
+
+    <style>
+        body {
+            font-family: Arial, "Microsoft JhengHei",
+                         sans-serif;
+            background: #f4f7f6;
+            margin: 0;
+            color: #263238;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 35px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #24765c;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            border-radius: 12px;
+            margin-bottom: 18px;
+            box-shadow: 0 2px 8px #00000012;
+        }
+
+        textarea {
+            box-sizing: border-box;
+            width: 100%;
+            min-height: 100px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+            resize: vertical;
+        }
+
+        button {
+            background: #24765c;
+            border: none;
+            color: white;
+            padding: 11px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        button.secondary {
+            background: #5c6b73;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .actions form {
+            margin: 0;
+        }
+
+        .answer {
+            white-space: pre-wrap;
+            line-height: 1.8;
+            background: #f0f8f4;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .question {
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .sources {
+            padding-left: 20px;
+            line-height: 1.8;
+        }
+
+        .sources li {
+            margin-bottom: 12px;
+        }
+
+        a {
+            color: #176caa;
+            overflow-wrap: anywhere;
+        }
+
+        .notice {
+            background: #fff2dc;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .hint {
+            font-size: 14px;
+            color: #61716d;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <h1>健康醫療 RAG 諮詢小幫手</h1>
+    <p>透過健康新聞檢索與地端 AI 模型回答問題</p>
+
+    {% for message in get_flashed_messages() %}
+    <div class="notice">{{ message }}</div>
+    {% endfor %}
+
+    <!-- 提問區 -->
+    <div class="card">
+        <h2>提出健康問題</h2>
+
+        <form action="{{ url_for('ask') }}"
+              method="POST">
+
+            <textarea name="question"
+                      placeholder="請輸入健康相關問題..."
+                      required></textarea>
+
+            <p>
+                <label>
+                    <input type="checkbox"
+                           name="retrieve"
+                           checked>
+                    重新檢索新聞（RAG）
+                </label>
+            </p>
+
+            <p class="hint">
+                勾選：使用 FAISS 搜尋相關新聞。
+                未勾選：沿用上一輪新聞回答追問。
+            </p>
+
+            <button type="submit">
+                送出問題
+            </button>
+        </form>
+    </div>
+
+    <!-- 操作按鈕 -->
+    <div class="actions">
+
+        <form action="{{ url_for('summarize') }}"
+              method="POST">
+            <button type="submit">
+                整理問答重點
+            </button>
+        </form>
+
+        <form action="{{ url_for('reset') }}"
+              method="POST">
+            <button type="submit" class="secondary">
+                清除對話
+            </button>
+        </form>
+
+    </div>
+
+    <!-- 歷史問答 -->
+    <h2>對話紀錄</h2>
+
+    {% for turn in turns %}
+    <div class="card">
+
+        <div class="question">
+            問題 {{ loop.index }}：
+            {{ turn.question }}
+        </div>
+
+        <p class="hint">
+            {% if turn.retrieved %}
+                本輪重新檢索新聞
+            {% else %}
+                本輪沿用先前新聞
+            {% endif %}
+        </p>
+
+        <div class="answer">{{ turn.answer }}</div>
+
+        <h3>參考新聞來源</h3>
+
+        <ul class="sources">
+            {% for article in turn.sources %}
+            <li>
+                <strong>{{ article.title }}</strong>
+                <div>
+                    <a href="{{ article.url }}"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        {{ article.url }}
+                    </a>
+                </div>
+                <div>
+                    文章新增時間：
+                    {{ article.created_at or "未知" }}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+    </div>
+    {% else %}
+    <p>目前尚無對話紀錄。</p>
+    {% endfor %}
+
+    <!-- 問答重點整理 -->
+    {% if summary %}
+    <div class="card">
+
+        <h2>問答重點整理</h2>
+
+        <div class="answer">{{ summary }}</div>
+
+        <h3>參考新聞來源</h3>
+
+        <ul class="sources">
+            {% for article in summary_sources %}
+            <li>
+                <strong>{{ article.title }}</strong>
+                <div>
+                    <a href="{{ article.url }}"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        {{ article.url }}
+                    </a>
+                </div>
+                <div>
+                    文章新增時間：
+                    {{ article.created_at or "未知" }}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+    </div>
+    {% endif %}
+
+    <p class="hint">
+        本系統僅提供新聞資訊整理，
+        不取代醫師診斷或專業醫療建議。
+    </p>
+
+</div>
+</body>
+</html>
