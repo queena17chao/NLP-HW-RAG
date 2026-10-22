@@ -413,7 +413,7 @@ https://www.healthnews.com.tw/
 
 專案程式碼：
 
-https://github.com/queena17chao/RAG
+https://github.com/queena17chao/NLP-HW-RAG
 
 ---
 
